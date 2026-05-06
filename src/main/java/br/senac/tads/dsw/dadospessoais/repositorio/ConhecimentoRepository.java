@@ -10,6 +10,6 @@ import br.senac.tads.dsw.dadospessoais.entidade.ConhecimentoEntity;
 @Repository
 public interface ConhecimentoRepository extends JpaRepository<ConhecimentoEntity, Long>{
     
-    Optional<ConhecimentoRepository> findByNomeIgnoreCase(String nome);
+    Optional<ConhecimentoEntity> findByNomeIgnoreCase(String nome);
 
 }

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -25,16 +26,22 @@ import jakarta.validation.Valid;
 @RequestMapping("/pessoas")
 public class PessoaController {
 
-	private final PessoaService pessoaService;
+	private final PessoaServiceMapImpl pessoaService;
 
 	// POR QUE DEVE SER ASSIM?
-	public PessoaController(PessoaService pessoaService) {
+	public PessoaController(PessoaServiceMapImpl pessoaService) {
 		this.pessoaService = pessoaService;
 	}
 
 	@GetMapping
 	public List<PessoaDto> obterPessoas() {
 		return pessoaService.obterPessoas();
+	}
+
+	// GET /pessoas/busca?q=<termo>
+	@GetMapping("/busca")
+	public ResponseEntity<List<PessoaDto>> buscarPessoas(@RequestParam("q") String termo) {
+		return ResponseEntity.ok(pessoaService.buscarPessoas(termo));
 	}
 
 	@GetMapping("/{username}")
@@ -52,12 +59,13 @@ public class PessoaController {
 	@PostMapping("/sem-validacao")
 	public ResponseEntity<?> incluirNovoSemValidacao(@RequestBody PessoaDto pessoa) {
 		pessoaService.incluirNovo(pessoa);
-		// URI location = URI.create("http://localhost:8080/pessoas/" + pessoa.getUsername());
+		// URI location = URI.create("http://localhost:8080/pessoas/" +
+		// pessoa.getUsername());
 		URI location = ServletUriComponentsBuilder //
-			.fromCurrentRequestUri() //
-			.path("/{username}") //
-			.buildAndExpand(pessoa.getUsername()) //
-			.toUri();
+				.fromCurrentRequestUri() //
+				.path("/{username}") //
+				.buildAndExpand(pessoa.getUsername()) //
+				.toUri();
 		return ResponseEntity.created(location).build();
 	}
 
@@ -65,17 +73,17 @@ public class PessoaController {
 	public ResponseEntity<?> incluirNovo(@RequestBody @Valid PessoaDto pessoa) {
 		pessoaService.incluirNovo(pessoa);
 		URI location = ServletUriComponentsBuilder //
-			.fromCurrentRequestUri() //
-			.replacePath("/pessoas/{username}") // // Para remover o /validacao
-			.buildAndExpand(pessoa.getUsername()) //
-			.toUri();
+				.fromCurrentRequestUri() //
+				.replacePath("/pessoas/{username}") // // Para remover o /validacao
+				.buildAndExpand(pessoa.getUsername()) //
+				.toUri();
 		return ResponseEntity.created(location).build();
 	}
 
 	@PutMapping("/{username}")
 	public ResponseEntity<?> alterarPessoa(
-		@PathVariable("username") String username,
-		@RequestBody @Valid PessoaAlteracaoDto alteracoes) {
+			@PathVariable("username") String username,
+			@RequestBody @Valid PessoaAlteracaoDto alteracoes) {
 
 		PessoaDto pessoaAlterada = pessoaService.alterar(username, alteracoes);
 		return ResponseEntity.ok().body(pessoaAlterada);
