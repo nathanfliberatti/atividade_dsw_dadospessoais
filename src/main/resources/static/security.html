@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo: Spring Security + JWT</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 700px;
+            margin: 2rem auto;
+            padding: 0 1.25rem 4rem;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        h1 {
+            color: #6db33f;
+            border-bottom: 2px solid #6db33f;
+            padding-bottom: 0.4rem;
+        }
+
+        h2 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #555;
+            margin-top: 2rem;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 12px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            padding: 8px 12px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-size: 1rem;
+        }
+
+        button {
+            background: #6db33f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 8px;
+            margin-right: 4px;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            background: #5a9a35;
+        }
+
+        button.azul {
+            background: #007bff;
+        }
+
+        button.azul:hover {
+            background: #0056b3;
+        }
+
+        button.cinza {
+            background: #6c757d;
+        }
+
+        button.cinza:hover {
+            background: #545b62;
+        }
+
+        .caixa {
+            background: #fbf8f6;
+            border: 1px solid #d4e8c4;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin-top: 1rem;
+        }
+
+        pre {
+            background: #1e2d1e;
+            color: #7fff00;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.82rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .erro {
+            color: #dc3545;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+
+        .sucesso {
+            color: #198754;
+            margin-top: 8px;
+        }
+
+        .oculto {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Demo: Spring Security + JWT</h1>
+
+    <h2>1. Login</h2>
+    <label for="inputUsername">Username:</label>
+    <input type="text" id="inputUsername" value="admin" />
+
+    <label for="inputSenha">Senha:</label>
+    <input type="password" id="inputSenha" value="Abcd%12345" />
+
+    <br />
+    <button onclick="fazerLogin()">Entrar</button>
+
+    <p id="erroLogin" class="erro"></p>
+    <p id="statusLogin" class="sucesso"></p>
+
+    <div id="secaoLogado" class="oculto">
+
+        <h2>2. Token JWT Recebido</h2>
+        <div class="caixa">
+            <pre id="tokenTexto"></pre>
+        </div>
+
+        <h2>3. Dados do Usuário Logado - GET /me</h2>
+        <button class="azul" onclick="chamarMe()">GET /me</button>
+        <div id="resultadoMe" class="caixa oculto">
+            <strong>Resposta:</strong>
+            <pre id="textoMe"></pre>
+        </div>
+
+        <h2>4. Endpoints por Role</h2>
+        <p style="font-size: 0.88rem; color: #555;">
+            Todos os botões ficam visíveis. O servidor decide quem tem acesso com base na role do token.
+            Tente fazer login com diferentes usuários e observe os resultados.
+        </p>
+        <div class="caixa">
+            <button id="btnAdmin" class="azul" onclick="chamarRole('/acesso/admin')">
+                GET /acesso/admin – exige ROLE_ADMIN
+            </button>
+            <br />
+            <button id="btnGerente" class="azul" onclick="chamarRole('/acesso/gerente')">
+                GET /acesso/gerente – exige ROLE_GERENTE
+            </button>
+            <br />
+            <button id="btnUser" class="azul" onclick="chamarRole('/acesso/user')">
+                GET /acesso/user – exige ROLE_USER
+            </button>
+        </div>
+
+        <h2>5. Logout</h2>
+        <button class="cinza" onclick="fazerLogout()">Sair (remover token)</button>
+        <p style="font-size: 0.85rem; color: #666; margin-top: 6px;">
+            O token é armazenado no <code>localStorage</code> do navegador.
+            Ao sair, ele é removido – mas no servidor, o token permanece válido até expirar.
+        </p>
+
+    </div>
+
+    <script>
+        // =================================================================
+        // INICIALIZAÇÃO – verifica se há token salvo de sessão anterior
+        // =================================================================
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('jwt_token');
+            if (token) {
+                exibirSecaoLogado(token);
+                document.getElementById('statusLogin').textContent =
+                    'Token encontrado no localStorage (sessão anterior).';
+            }
+        });
+
+        // =================================================================
+        // LOGIN
+        // =================================================================
+        async function fazerLogin() {
+            const username = document.getElementById('inputUsername').value.trim();
+            const senha = document.getElementById('inputSenha').value;
+
+            document.getElementById('erroLogin').textContent = '';
+            document.getElementById('statusLogin').textContent = 'Aguardando...';
+
+            try {
+                const resp = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, senha })
+                });
+
+                if (!resp.ok) {
+                    const body = await resp.json().catch(() => ({}));
+                    document.getElementById('erroLogin').textContent =
+                        'Erro ' + resp.status + ': ' + (body.erro || 'Credenciais inválidas');
+                    document.getElementById('statusLogin').textContent = '';
+                    return;
+                }
+
+                const { token } = await resp.json();
+                localStorage.setItem('jwt_token', token);
+                document.getElementById('statusLogin').textContent =
+                    'Login realizado! Token salvo no localStorage.';
+                exibirSecaoLogado(token);
+
+            } catch (err) {
+                document.getElementById('erroLogin').textContent = 'Falha de conexão: ' + err.message;
+                document.getElementById('statusLogin').textContent = '';
+            }
+        }
+
+        function exibirSecaoLogado(token) {
+            document.getElementById('tokenTexto').textContent = token;
+            document.getElementById('secaoLogado').classList.remove('oculto');
+
+            // Decodifica o payload do JWT para extrair as roles
+            try {
+                const partes = token.split('.');
+                const payload = base64UrlDecode(partes[1]);
+                const roles = payload.roles ?? [];
+                // Oculta os botões para os quais o usuário não tem a role correspondente
+                document.getElementById('btnAdmin').style.display =
+                    roles.includes('ROLE_ADMIN') ? '' : 'none';
+                document.getElementById('btnGerente').style.display =
+                    roles.includes('ROLE_GERENTE') ? '' : 'none';
+                document.getElementById('btnUser').style.display =
+                    roles.includes('ROLE_USER') ? '' : 'none';
+            } catch (e) {
+                // Token malformado — mantém todos os botões visíveis
+            }
+            
+            document.getElementById('resultadoMe').classList.add('oculto');
+        }
+
+        // =================================================================
+        // ENDPOINT /me – resultado exibido no corpo da página
+        // =================================================================
+        async function chamarMe() {
+            const token = localStorage.getItem('jwt_token');
+            try {
+                const resp = await fetch('/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const dados = await resp.json();
+                const caixa = document.getElementById('resultadoMe');
+                document.getElementById('textoMe').textContent =
+                    'HTTP ' + resp.status + '\n\n' + JSON.stringify(dados, null, 2);
+                caixa.classList.remove('oculto');
+            } catch (err) {
+                alert('Erro de conexão: ' + err.message);
+            }
+        }
+
+        // =================================================================
+        // ENDPOINTS POR ROLE – resultado exibido em alert
+        // =================================================================
+        async function chamarRole(caminho) {
+            const token = localStorage.getItem('jwt_token');
+            try {
+                const resp = await fetch(caminho, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const dados = await resp.json();
+                if (resp.ok) {
+                    alert('Acesso permitido! HTTP ' + resp.status + '\n\n' + JSON.stringify(dados, null, 2));
+                } else {
+                    alert('Acesso negado! HTTP ' + resp.status + '\n\n' + JSON.stringify(dados, null, 2));
+                }
+            } catch (err) {
+                alert('Erro de conexão: ' + err.message);
+            }
+        }
+
+        // =================================================================
+        // LOGOUT
+        // =================================================================
+        function fazerLogout() {
+            localStorage.removeItem('jwt_token');
+            document.getElementById('secaoLogado').classList.add('oculto');
+            document.getElementById('statusLogin').textContent =
+                'Token removido. Faça login novamente.';
+        }
+
+        function base64UrlDecode(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (str.length % 4 !== 0) str += '='; // padding obrigatório no Base64 padrão
+            return JSON.parse(atob(str));
+        }
+
+    </script>
+</body>
+
+</html>

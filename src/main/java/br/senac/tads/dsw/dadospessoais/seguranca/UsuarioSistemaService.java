@@ -27,7 +27,7 @@ public class UsuarioSistemaService implements UserDetailsService {
         // admin — acesso total: ROLE_ADMIN, ROLE_GERENTE e ROLE_USER
         this.usuarios.put("admin", new UsuarioSistema(
             "admin",
-            passwordEncoder.encode("Abc12345*"),
+            passwordEncoder.encode("Abcd%12345"),
             List.of(
                 new SimpleGrantedAuthority("ROLE_ADMIN"),
                 new SimpleGrantedAuthority("ROLE_GERENTE"),
@@ -38,7 +38,7 @@ public class UsuarioSistemaService implements UserDetailsService {
         // user1 — acesso intermediário: ROLE_GERENTE e ROLE_USER
         this.usuarios.put("user1", new UsuarioSistema(
             "user1",
-            passwordEncoder.encode("Abc12345*"),
+            passwordEncoder.encode("Abcd%12345"),
             List.of(
                 new SimpleGrantedAuthority("ROLE_GERENTE"),
                 new SimpleGrantedAuthority("ROLE_USER")
@@ -48,7 +48,7 @@ public class UsuarioSistemaService implements UserDetailsService {
         // user2 — acesso básico: somente ROLE_USER
         this.usuarios.put("user2", new UsuarioSistema(
             "user2",
-            passwordEncoder.encode("Abc12345*"),
+            passwordEncoder.encode("Abcd%12345"),
             List.of(
                 new SimpleGrantedAuthority("ROLE_USER")
             )
